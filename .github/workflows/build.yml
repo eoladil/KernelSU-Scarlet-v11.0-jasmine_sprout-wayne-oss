@@ -1,22 +1,21 @@
 name: Build Scarlet KernelSU (Jasmine Sprout)
 
-# This allows you to trigger the build manually from the GitHub website
 on:
   workflow_dispatch:
 
 jobs:
   build:
     name: Build Kernel
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
       - name: Checkout Your Repository
         uses: actions/checkout@v4
 
-       - name: Install Build Dependencies
+      - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev squashfs-tools schedtool dpkg-dev liblz4-tool make libssl-dev bc libc6-dev-i386 libncurses-dev lib32ncurses-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev xsltproc unzip python3
+          sudo apt-get install -y git ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip python3
 
       - name: Download Toolchain (Proton Clang)
         run: |
@@ -30,35 +29,24 @@ jobs:
         run: |
           cd kernel-source
           
-          # Tell the system where our compiler is
           export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=arm64
           export KBUILD_BUILD_USER="builder"
           export KBUILD_BUILD_HOST="github-actions"
 
-          # 1. Generate the configuration file
-          # NOTE: If this fails, the defconfig might be named slightly differently 
-          # (e.g., vendor/jasmine_sprout_defconfig or wayne_defconfig). 
           make O=out CC=clang CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- jasmine_sprout_defconfig
-
-          # 2. Compile the kernel
           make -j$(nproc --all) O=out CC=clang CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
-      - name: Clone AnyKernel3 (Flashable Zip Creator)
+      - name: Clone AnyKernel3
         run: |
-          # We use a base AnyKernel3 to pack the kernel into a flashable zip for recovery (TWRP/OrangeFox)
           git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
-          
-          # Modify the script to target jasmine_sprout boot partition
           sed -i 's/block=.*/block=\/dev\/block\/bootdevice\/by-name\/boot;/' AnyKernel3/anykernel.sh
           sed -i 's/is_slot_device=.*/is_slot_device=1;/' AnyKernel3/anykernel.sh
 
       - name: Package the Kernel Zip
         run: |
-          # Copy the compiled kernel image into the AnyKernel3 folder
           cp kernel-source/out/arch/arm64/boot/Image.gz-dtb AnyKernel3/ || cp kernel-source/out/arch/arm64/boot/Image AnyKernel3/
-          
           cd AnyKernel3
           zip -r9 ../Scarlet-KernelSU-Jasmine-ArrowOS.zip *
 
