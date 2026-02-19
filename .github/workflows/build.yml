@@ -1,54 +1,23 @@
-name: Build Scarlet KernelSU (Jasmine Sprout)
+name: Package Pre-Compiled KernelSU (Jasmine Sprout)
 
+# This allows you to trigger the packaging manually
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build Kernel
-    runs-on: ubuntu-20.04
+    name: Zip Kernel
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Your Repository
         uses: actions/checkout@v4
 
-      - name: Install Build Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y git ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip python3
-
-      - name: Download Toolchain (Proton Clang)
-        run: |
-          git clone --depth=1 https://github.com/kdrag0n/proton-clang.git clang
-
-      - name: Clone Kernel Source
-        run: |
-          git clone --depth=1 https://github.com/eoladil/KernelSU-Scarlet-v11.0-jasmine_sprout-wayne-oss.git kernel-source
-
-      - name: Build the Kernel
-        run: |
-          cd kernel-source
-          
-          export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
-          export ARCH=arm64
-          export SUBARCH=arm64
-          export KBUILD_BUILD_USER="builder"
-          export KBUILD_BUILD_HOST="github-actions"
-
-          make O=out CC=clang CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- jasmine_sprout_defconfig
-          make -j$(nproc --all) O=out CC=clang CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
-
-      - name: Clone AnyKernel3
-        run: |
-          git clone https://github.com/osm0sis/AnyKernel3.git AnyKernel3
-          sed -i 's/block=.*/block=\/dev\/block\/bootdevice\/by-name\/boot;/' AnyKernel3/anykernel.sh
-          sed -i 's/is_slot_device=.*/is_slot_device=1;/' AnyKernel3/anykernel.sh
-
       - name: Package the Kernel Zip
         run: |
-          cp kernel-source/out/arch/arm64/boot/Image.gz-dtb AnyKernel3/ || cp kernel-source/out/arch/arm64/boot/Image AnyKernel3/
-          cd AnyKernel3
-          zip -r9 ../Scarlet-KernelSU-Jasmine-ArrowOS.zip *
+          # This command zips all files in the repository.
+          # The '-x' flags tell it to ignore hidden GitHub folders so your zip stays clean.
+          zip -r9 Scarlet-KernelSU-Jasmine-ArrowOS.zip * -x ".git*" -x ".github*"
 
       - name: Upload Kernel as Release Artifact
         uses: actions/upload-artifact@v4
